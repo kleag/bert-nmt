@@ -1,3 +1,5 @@
+*.swp
+
 # JetBrains PyCharm IDE
 .idea/
 
