@@ -1,5 +1,22 @@
 #!/bin/bash
 # Adapted from https://github.com/facebookresearch/MIXER/blob/master/prepareData.sh
+# Nombre de machine ou NODES typiquement=1 sauf
+#SBATCH -N 1
+ 
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+####SBATCH --mincpus=8
+#SBATCH --job-name=preprocess-bert-nmt
+#SBATCH --output=res_%j.log
+#####SBATCH --error=res_%j.err
+#SBATCH --partition=cpu
+#SBATCH --mail-type=start,end,fail
+#SBATCH --mail-user=gael.de-chalendar@cea.fr
+# d-hh:mm:ss
+#SBATCH --time=7-0:00:00
+#SBATCH --mem=50G
+#SBATCH --exclude=node5
+####SBATCH --nodelist=node6,node7
 
 echo 'Cloning Moses github repository (for tokenization scripts)...'
 git clone https://github.com/moses-smt/mosesdecoder.git

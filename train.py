@@ -11,15 +11,17 @@ Train a new model on one or across multiple GPUs.
 
 import collections
 import math
-import os
 import random
 
 import torch
 
-from fairseq import checkpoint_utils, distributed_utils, options, progress_bar, tasks, utils
+from fairseq import (checkpoint_utils, distributed_utils, options,
+                     progress_bar, tasks, utils)
 from fairseq.data import iterators
 from fairseq.trainer import Trainer
 from fairseq.meters import AverageMeter, StopwatchMeter
+
+torch.autograd.set_detect_anomaly(True)
 
 
 def main(args, init_distributed=False):
@@ -41,7 +43,8 @@ def main(args, init_distributed=False):
     # Setup task, e.g., translation, language modeling, etc.
     task = tasks.setup_task(args)
 
-    # Load valid dataset (we load training data below, based on the latest checkpoint)
+    # Load valid dataset (we load training data below, based on the latest
+    # checkpoint)
     for valid_sub_split in args.valid_subset.split(','):
         task.load_dataset(valid_sub_split, combine=True, epoch=0)
 
@@ -56,11 +59,13 @@ def main(args, init_distributed=False):
                 param.requires_grad = False
     criterion = task.build_criterion(args)
     print(model)
-    print('| model {}, criterion {}'.format(args.arch, criterion.__class__.__name__))
+    print('| model {}, criterion {}'.format(args.arch,
+                                            criterion.__class__.__name__))
     print('| num. model params: {} (num. trained: {})'.format(
         sum(p.numel() for p in model.parameters()),
-        sum(p.numel() for p in model.parameters() if p.requires_grad),
-    ))
+        sum(p.numel() for p in model.parameters() if p.requires_grad)
+    ),
+        flush=True)
 
     # Build trainer
     trainer = Trainer(args, task, model, criterion)
@@ -68,7 +73,7 @@ def main(args, init_distributed=False):
     print('| max tokens per GPU = {} and max sentences per GPU = {}'.format(
         args.max_tokens,
         args.max_sentences,
-    ))
+    ), flush=True)
 
     # Load the latest checkpoint if one is available and restore the
     # corresponding train iterator
@@ -83,13 +88,18 @@ def main(args, init_distributed=False):
     valid_losses = [None]
     valid_subsets = args.valid_subset.split(',')
     if args.warmup_from_nmt:
-        checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0], warmup_from_nmt=True)
-    while lr > args.min_lr and epoch_itr.epoch < max_epoch and trainer.get_num_updates() < max_update:
+        checkpoint_utils.save_checkpoint(args, trainer, epoch_itr,
+                                         valid_losses[0],
+                                         warmup_from_nmt=True)
+    while (lr > args.min_lr and epoch_itr.epoch < max_epoch
+           and trainer.get_num_updates() < max_update):
         # train for one epoch
         train(args, trainer, task, epoch_itr)
 
-        if not args.disable_validation and epoch_itr.epoch % args.validate_interval == 0:
-            valid_losses = validate(args, trainer, task, epoch_itr, valid_subsets)
+        if (not args.disable_validation
+                and epoch_itr.epoch % args.validate_interval == 0):
+            valid_losses = validate(args, trainer, task, epoch_itr,
+                                    valid_subsets)
         else:
             valid_losses = [None]
 
@@ -98,7 +108,8 @@ def main(args, init_distributed=False):
 
         # save checkpoint
         if epoch_itr.epoch % args.save_interval == 0:
-            checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0])
+            checkpoint_utils.save_checkpoint(args, trainer, epoch_itr,
+                                             valid_losses[0])
 
         if ':' in getattr(args, 'data', ''):
             # sharded data: get train iterator for next epoch
@@ -134,7 +145,8 @@ def train(args, trainer, task, epoch_itr):
         # log mid-epoch stats
         stats = get_training_stats(trainer)
         for k, v in log_output.items():
-            if k in ['loss', 'nll_loss', 'ntokens', 'nsentences', 'sample_size']:
+            if k in ['loss', 'nll_loss', 'ntokens', 'nsentences',
+                     'sample_size']:
                 continue  # these are already logged above
             if 'loss' in k:
                 extra_meters[k].update(v, log_output['sample_size'])
@@ -154,8 +166,10 @@ def train(args, trainer, task, epoch_itr):
             and num_updates % args.save_interval_updates == 0
             and num_updates > 0
         ):
-            valid_losses = validate(args, trainer, task, epoch_itr, valid_subsets)
-            checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0])
+            valid_losses = validate(args, trainer, task, epoch_itr,
+                                    valid_subsets)
+            checkpoint_utils.save_checkpoint(args, trainer, epoch_itr,
+                                             valid_losses[0])
 
         if num_updates >= max_update:
             break
@@ -168,7 +182,8 @@ def train(args, trainer, task, epoch_itr):
 
     # reset training meters
     for k in [
-        'train_loss', 'train_nll_loss', 'wps', 'ups', 'wpb', 'bsz', 'gnorm', 'clip',
+        'train_loss', 'train_nll_loss', 'wps', 'ups', 'wpb', 'bsz', 'gnorm',
+        'clip',
     ]:
         meter = trainer.get_meter(k)
         if meter is not None:
@@ -237,7 +252,8 @@ def validate(args, trainer, task, epoch_itr, subsets):
             log_output = trainer.valid_step(sample)
 
             for k, v in log_output.items():
-                if k in ['loss', 'nll_loss', 'ntokens', 'nsentences', 'sample_size']:
+                if k in ['loss', 'nll_loss', 'ntokens', 'nsentences',
+                         'sample_size']:
                     continue
                 extra_meters[k].update(v)
 
@@ -297,10 +313,11 @@ def cli_main():
         # fallback for single node with multiple GPUs
         assert args.distributed_world_size <= torch.cuda.device_count()
         port = random.randint(10000, 20000)
-        args.distributed_init_method = 'tcp://localhost:{port}'.format(port=port)
+        args.distributed_init_method = f'tcp://localhost:{port}'
         args.distributed_rank = None  # set based on device id
         if max(args.update_freq) > 1 and args.ddp_backend != 'no_c10d':
-            print('| NOTE: you may get better performance with: --ddp-backend=no_c10d')
+            print('| NOTE: you may get better performance with: '
+                  '--ddp-backend=no_c10d')
         torch.multiprocessing.spawn(
             fn=distributed_main,
             args=(args, ),

@@ -13,7 +13,6 @@ from collections import OrderedDict
 import json
 from numbers import Number
 import os
-import re
 import sys
 
 from tqdm import tqdm
@@ -23,7 +22,10 @@ from fairseq.meters import AverageMeter, StopwatchMeter, TimeMeter
 
 g_tbmf_wrapper = None
 
-def build_progress_bar(args, iterator, epoch=None, prefix=None, default='tqdm', no_progress_bar='none'):
+
+def build_progress_bar(args, iterator, epoch=None, prefix=None,
+                       default='tqdm',
+                       no_progress_bar='none'):
     if args.log_format is None:
         args.log_format = no_progress_bar if args.no_progress_bar else default
 
@@ -125,10 +127,13 @@ class json_progress_bar(progress_bar):
         size = float(len(self.iterable))
         for i, obj in enumerate(self.iterable, start=self.offset):
             yield obj
-            if self.stats is not None and i > 0 and \
-                    self.log_interval is not None and i % self.log_interval == 0:
-                update = self.epoch - 1 + float(i / size) if self.epoch is not None else None
-                stats = self._format_stats(self.stats, epoch=self.epoch, update=update)
+            if (self.stats is not None and i > 0
+                    and self.log_interval is not None
+                    and i % self.log_interval == 0):
+                update = (self.epoch - 1 + float(i / size)
+                          if self.epoch is not None else None)
+                stats = self._format_stats(self.stats, epoch=self.epoch,
+                                           update=update)
                 print(json.dumps(stats), flush=True)
 
     def log(self, stats, tag='', step=None):
@@ -139,7 +144,8 @@ class json_progress_bar(progress_bar):
         """Print end-of-epoch stats."""
         self.stats = stats
         if tag != '':
-            self.stats = OrderedDict([(tag + '_' + k, v) for k, v in self.stats.items()])
+            self.stats = OrderedDict([(tag + '_' + k, v)
+                                      for k, v in self.stats.items()])
         stats = self._format_stats(self.stats, epoch=self.epoch)
         print(json.dumps(stats), flush=True)
 
@@ -186,10 +192,12 @@ class simple_progress_bar(progress_bar):
         size = len(self.iterable)
         for i, obj in enumerate(self.iterable, start=self.offset):
             yield obj
-            if self.stats is not None and i > 0 and \
-                    self.log_interval is not None and i % self.log_interval == 0:
+            if (self.stats is not None and i > 0
+                    and self.log_interval is not None
+                    and i % self.log_interval == 0):
                 postfix = self._str_commas(self.stats)
-                print('{}:  {:5d} / {:d} {}'.format(self.prefix, i, size, postfix),
+                print('{}:  {:5d} / {:d} {}'.format(self.prefix, i, size,
+                                                    postfix),
                       flush=True)
 
     def log(self, stats, tag='', step=None):
@@ -236,7 +244,8 @@ class tensorboard_log_wrapper(progress_bar):
             self._writers = {}
         except ImportError:
             print("tensorboard or required dependencies not found, "
-                  "please see README for using tensorboard. (e.g. pip install tensorboardX)")
+                  "please see README for using tensorboard. (e.g. pip "
+                  "install tensorboardX)")
             self.SummaryWriter = None
 
     def _writer(self, key):
